@@ -161,7 +161,7 @@ export default function App() {
 Zod validations
 
 ```sh
-npm install @hookform/resolvers
+npm install zod @hookform/resolvers
 ```
 
 ```typescript
