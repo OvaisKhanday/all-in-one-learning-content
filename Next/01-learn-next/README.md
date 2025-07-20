@@ -1,4 +1,44 @@
-# Learn Next.js
+<html>
+  <head>
+    <style>
+      .outro{
+        height: 200px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+        justify-content: center;
+        background-color: white;
+        background-image: radial-gradient(circle at 25px 25px, lightgray 2%, transparent 0%), radial-gradient(circle at 75px 75px, lightgray 2%, transparent 0%);
+        background-size: 100px 100px;
+        margin: 20px 0px;
+      }
+      .heading{
+        font-size: xx-large;
+        font-weight: bold;
+        animation: up-down 0.3s 0.6s infinite alternate;
+      }
+      .dot{
+        animation: up-down 0.6s infinite alternate;
+      }
+      @keyframes up-down{
+        from {
+          color: red;
+        }
+        to {
+          color: orange;
+        }
+      }
+    </style>
+
+  <body>
+    <div class="outro">
+      <p class="heading">Learn Next<span class="dot">.</span>js</p>
+    </div>
+  </body>
+</html>
+
+# Learn Nextjs
 
 Installation
 
@@ -612,5 +652,690 @@ export const preload = (id: string) => {
 
 export const getItem = cache(async (id: string) => {
   // ...
+});
+```
+
+## Updating Data
+
+A Server Function is an **asynchronous** function that runs on the server. They can be called from client through a **network request**, which is why they must be asynchronous.
+
+In an action or mutation context, they are also called **Server Actions**.
+
+By convention, a Server Action is an async function used with `startTransition`. This happens automatically when the function is:
+
+Passed to a `<form>` using the action prop.
+Passed to a `<button>` using the `formAction` prop.
+
+In Next.js, Server Actions integrate with the framework's caching architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
+
+Behind the scenes, actions use the `POST` method, and only this HTTP method can invoke them.
+
+### Creating Server Functions
+
+using `user server` directive
+
+```typescript
+// app/lib/actions.ts
+export async function createPost(formData: FormData) {
+  "use server";
+  const title = formData.get("title");
+  const content = formData.get("content");
+
+  // Update data
+  // Revalidate cache
+}
+
+export async function deletePost(formData: FormData) {
+  "use server";
+  const id = formData.get("id");
+
+  // Update data
+  // Revalidate cache
+}
+```
+
+inside a Server component
+
+```typescript
+// app/page.tsx
+export default function Page() {
+  // Server Action
+  async function createPost(formData: FormData) {
+    "use server";
+    // ...
+  }
+
+  return <></>;
+}
+```
+
+Inside a Client component
+
+```typescript
+//app/actions.ts
+"use server";
+
+export async function createPost() {}
+
+//app/ui/button.tsx
+("use client");
+
+import { createPost } from "@/app/actions";
+
+export function Button() {
+  return <button formAction={createPost}>Create</button>;
+}
+```
+
+```typescript
+// passing action from server component
+<ClientComponent updateItemAction={updateItem} />
+```
+
+### Invoking Server Functions
+
+There are two main ways you can invoke a Server Function:
+
+- Forms in Server and Client Components
+
+```typescript
+import { createPost } from "@/app/actions";
+
+export function Form() {
+  return (
+    <form action={createPost}>
+      {" "}
+      // receives FormData
+      <input type='text' name='title' />
+      <input type='text' name='content' />
+      <button type='submit'>Create</button>
+    </form>
+  );
+}
+```
+
+- Event Handlers and `useEffect` in Client Components
+
+```typescript
+"use client";
+
+import { incrementLike } from "./actions";
+import { useState } from "react";
+
+export default function LikeButton({ initialLikes }: { initialLikes: number }) {
+  const [likes, setLikes] = useState(initialLikes);
+
+  return (
+    <>
+      <p>Total Likes: {likes}</p>
+      <button
+        onClick={async () => {
+          const updatedLikes = await incrementLike();
+          setLikes(updatedLikes);
+        }}
+      >
+        Like
+      </button>
+    </>
+  );
+}
+```
+
+Show a pending state in client component
+
+```typescript
+"use client";
+
+import { useActionState, startTransition } from "react";
+import { createPost } from "@/app/actions";
+import { LoadingSpinner } from "@/app/ui/loading-spinner";
+
+export function Button() {
+  const [state, action, pending] = useActionState(createPost, false);
+
+  return <button onClick={() => startTransition(action)}>{pending ? <LoadingSpinner /> : "Create Post"}</button>;
+}
+```
+
+### Revalidating
+
+After performing an update, you can revalidate the Next.js cache and show the updated data by calling `revalidatePath` or `revalidateTag` within the Server Function:
+
+```typescript
+import { revalidatePath } from "next/cache";
+
+export async function createPost(formData: FormData) {
+  "use server";
+  // Update data
+  // ...
+
+  revalidatePath("/posts");
+}
+```
+
+### Redirecting
+
+```typescript
+"use server";
+
+import { redirect } from "next/navigation";
+
+export async function createPost(formData: FormData) {
+  // Update data
+  // ...
+
+  redirect("/posts");
+}
+```
+
+### Cookie Management
+
+```typescript
+"use server";
+
+import { cookies } from "next/headers";
+
+export async function exampleAction() {
+  const cookieStore = await cookies();
+
+  // Get cookie
+  cookieStore.get("name")?.value;
+
+  // Set cookie
+  cookieStore.set("name", "Delba");
+
+  // Delete cookie
+  cookieStore.delete("name");
+}
+```
+
+## Caching and Revalidation
+
+Next.js provides a few APIs to handle caching and revalidation. This guide will walk you through when and how to use them.
+
+- `fetch`
+- `unstable_cache`
+- `revalidatePath`
+- `revalidateTag`
+
+### `fetch`
+
+force to cache, because fetch doesn't cache by default
+
+```typescript
+export default async function Page() {
+  const data = await fetch("https://...", { cache: "force-cache" });
+}
+```
+
+**Good to know**: Although `fetch` requests are not cached by default, Next.js will prerender routes that have fetch requests and cache the HTML. If you want to guarantee a route is dynamic, use the `connection` API.
+
+```typescript
+import { connection } from "next/server";
+
+export default async function Page() {
+  await connection();
+  // Everything below will be excluded from pre-rendering
+  const rand = Math.random();
+  return <span>{rand}</span>;
+}
+```
+
+revalidate
+
+```typescript
+export default async function Page() {
+  const data = await fetch("https://...", { next: { revalidate: 3600 } });
+}
+```
+
+### `unstable-cache`
+
+```typescript
+import { unstable_cache } from "next/cache";
+import { getUserById } from "@/app/lib/data";
+
+export default async function Page({ params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+
+  const getCachedUser = unstable_cache(
+    async () => {
+      return getUserById(userId);
+    },
+    [userId], // add the user ID to the cache key
+    {
+      tags: ["user"], // can be used to revalidate it, inside the deps array ['user'] or using revalidateTag('user')
+      revalidate: 3600,
+    }
+  );
+}
+```
+
+### `revalidateTag`
+
+```typescript
+// app/lib/data.ts
+//                  using fetch()
+export async function getUserById(id: string) {
+  const data = await fetch(`https://...`, {
+    next: {
+      tags: ["user"],
+    },
+  });
+}
+
+//             using unstable_cache()
+export const getUserById = unstable_cache(
+  async (id: string) => {
+    return db.query.users.findFirst({ where: eq(users.id, id) });
+  },
+  ["user"], // Needed if variables are not passed as parameters
+  {
+    tags: ["user"],
+  }
+);
+
+// app/lib/actions.ts
+import { revalidateTag } from "next/cache";
+
+export async function updateUser(id: string) {
+  // Mutate data
+  revalidateTag("user");
+}
+```
+
+### `revalidatePath`
+
+`revalidatePath` is used to revalidate a route and following an event. To use it, call it in a Route Handler or Server Action:
+
+```typescript
+import { revalidatePath } from 'next/cache'
+
+export async function updateUser(id: string) {
+  // Mutate data
+  revalidatePath('/profile')
+```
+
+## Error Handling
+
+Errors can be divided into two categories: expected errors and uncaught exceptions.
+
+#### Expected Errors
+
+- Server Functions
+
+  You can use the useActionState hook to handle expected errors in Server Functions.
+
+  For these errors, avoid using `try`/`catch` blocks and throw errors. Instead, model expected errors as return values.
+
+```typescript
+// app/actions.ts
+"use server";
+
+export async function createPost(prevState: any, formData: FormData) {
+  const title = formData.get("title");
+  const content = formData.get("content");
+
+  const res = await fetch("https://api.vercel.app/posts", {
+    method: "POST",
+    body: { title, content },
+  });
+  const json = await res.json();
+
+  if (!res.ok) {
+    return { message: "Failed to create post" };
+  }
+}
+
+// app/ui/form.tsx
+("use client");
+
+import { useActionState } from "react";
+import { createPost } from "@/app/actions";
+
+const initialState = {
+  message: "",
+};
+
+export function Form() {
+  const [state, formAction, pending] = useActionState(createPost, initialState);
+
+  return (
+    <form action={formAction}>
+      <label htmlFor='title'>Title</label>
+      <input type='text' id='title' name='title' required />
+      <label htmlFor='content'>Content</label>
+      <textarea id='content' name='content' required />
+      {state?.message && <p aria-live='polite'>{state.message}</p>}
+      <button disabled={pending}>Create Post</button>
+    </form>
+  );
+}
+```
+
+- `redirect`
+
+The redirect function allows you to redirect the user to another URL. redirect can be used in Server Components, Route Handlers, and Server Actions.
+
+```typescript
+redirect(path, type);
+```
+
+- `notFound`
+
+```typescript
+import { getPostBySlug } from "@/lib/posts";
+
+export default async function Page({ params }: { params: { slug: string } }) {
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
+
+  if (!post) {
+    notFound();
+  }
+
+  return <div>{post.title}</div>;
+}
+```
+
+### Handling uncaught exceptions
+
+Nested error boundaries
+
+Create an error boundary by adding an `error.js` file inside a route segment and exporting a React component:
+
+```typescript
+"use client"; // Error boundaries must be Client Components
+
+import { useEffect } from "react";
+
+export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => {
+    // Log the error to an error reporting service
+    console.error(error);
+  }, [error]);
+
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button
+        onClick={
+          // Attempt to recover by trying to re-render the segment
+          () => reset()
+        }
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+```
+
+Error boundaries don’t catch errors inside event handlers. They’re designed to catch errors during rendering to show a fallback UI instead of crashing the whole app.
+
+```typescript
+"use client";
+
+import { useState } from "react";
+
+export function Button() {
+  const [error, setError] = useState(null);
+
+  const handleClick = () => {
+    try {
+      // do some work that might fail
+      throw new Error("Exception");
+    } catch (reason) {
+      setError(reason);
+    }
+  };
+
+  if (error) {
+    /* render fallback UI */
+  }
+
+  return (
+    <button type='button' onClick={handleClick}>
+      Click me
+    </button>
+  );
+}
+```
+
+Note that unhandled errors inside `startTransition` from `useTransition`, will bubble up to the nearest error boundary.
+
+```typescript
+"use client";
+
+import { useTransition } from "react";
+
+export function Button() {
+  const [pending, startTransition] = useTransition();
+
+  const handleClick = () =>
+    startTransition(() => {
+      throw new Error("Exception");
+    });
+
+  return (
+    <button type='button' onClick={handleClick}>
+      Click me
+    </button>
+  );
+}
+```
+
+Global errors
+
+```typescript
+"use client"; // Error boundaries must be Client Components
+
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  return (
+    // global-error must include html and body tags
+    <html>
+      <body>
+        <h2>Something went wrong!</h2>
+        <button onClick={() => reset()}>Try again</button>
+      </body>
+    </html>
+  );
+}
+```
+
+## CSS
+
+Next.js provides several ways to style your application using CSS, including:
+
+- CSS Modules
+
+```css
+/* app/blog/blog.module.css */
+
+.blog {
+  padding: 24px;
+}
+```
+
+```typescript
+// app/blog/page.tsx
+
+import styles from "./blog.module.css";
+
+export default function Page() {
+  return <main className={styles.blog}></main>;
+}
+```
+
+- Global CSS
+- External Stylesheets
+- Tailwind CSS
+- Sass
+- CSS-in-JS
+
+### Ordering and Merging
+
+Next.js optimizes CSS during production builds by automatically chunking (merging) stylesheets. **The order of your CSS** depends on **the order you import** styles in your code.
+
+To keep CSS ordering predictable:
+
+- Try to contain CSS imports to a single JavaScript or TypeScript entry file
+- Import global styles and Tailwind stylesheets in the root of your application.
+- Use CSS Modules instead of global styles for nested components.
+- Use a consistent naming convention for your CSS modules. For example, using `<name>.module.css` over `<name>.tsx`.
+- Extract shared styles into shared components to avoid duplicate imports.
+- Turn off linters or formatters that auto-sort imports like ESLint’s `sort-imports`.
+- You can use the `cssChunking` option in `next.config.j`s to control how CSS is chunked.
+
+## Image Optimization
+
+The Next.js `<Image>` component extends the HTML `<img>` element to provide:
+
+- **Size optimization**: Automatically serving correctly sized images for each device, using modern image formats like WebP.
+- **Visual stability**: Preventing layout shift automatically when images are loading.
+- **Faster page loads**: Only loading images when they enter the viewport using native browser lazy loading, with optional blur-up placeholders.
+- **Asset flexibility**: Resizing images on-demand, even images stored on remote servers.
+
+### Local Images
+
+```typescript
+import Image from "next/image";
+
+export default function Page() {
+  return <Image src='/profile.png' alt='Picture of the author' width={500} height={500} />;
+}
+
+//                  OR
+
+import Image from "next/image";
+import ProfileImage from "./profile.png";
+
+export default function Page() {
+  return (
+    <Image
+      src={ProfileImage}
+      alt='Picture of the author'
+      // width={500} automatically provided
+      // height={500} automatically provided
+      // blurDataURL="data:..." automatically provided
+      // placeholder="blur" // Optional blur-up while loading
+    />
+  );
+}
+```
+
+### Remote Images
+
+```typescript
+import Image from "next/image";
+
+export default function Page() {
+  return <Image src='https://s3.amazonaws.com/my-bucket/profile.png' alt='Picture of the author' width={500} height={500} />;
+}
+```
+
+```typescript
+import type { NextConfig } from "next";
+
+const config: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "s3.amazonaws.com",
+        port: "",
+        pathname: "/my-bucket/**",
+        search: "",
+      },
+    ],
+  },
+};
+
+export default config;
+```
+
+## Font Optimization
+
+### Google Fonts
+
+You can automatically self-host any Google Font. Fonts are included stored as static assets and served from the same domain as your deployment, meaning no requests are sent to Google by the browser when the user visits your site.
+
+```typescript
+import { Geist } from "next/font/google";
+
+const geist = Geist({
+  subsets: ["latin"],
+});
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang='en' className={geist.className}>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+**We recommend using variable fonts for the best performance and flexibility. But if you can't use a variable font, you will need to specify a weight:**
+
+```typescript
+import { Roboto } from "next/font/google";
+
+const roboto = Roboto({
+  weight: "400",
+  subsets: ["latin"],
+});
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang='en' className={roboto.className}>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+### Local Fonts
+
+```typescript
+import localFont from "next/font/local";
+
+const myFont = localFont({
+  src: "./my-font.woff2",
+});
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang='en' className={myFont.className}>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+```typescript
+const roboto = localFont({
+  src: [
+    {
+      path: "./Roboto-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./Roboto-Italic.woff2",
+      weight: "400",
+      style: "italic",
+    },
+    {
+      path: "./Roboto-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+    {
+      path: "./Roboto-BoldItalic.woff2",
+      weight: "700",
+      style: "italic",
+    },
+  ],
 });
 ```
