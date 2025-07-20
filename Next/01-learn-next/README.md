@@ -920,7 +920,7 @@ export async function updateUser(id: string) {
 
 Errors can be divided into two categories: expected errors and uncaught exceptions.
 
-#### Expected Errors
+### Expected Errors
 
 - Server Functions
 
