@@ -1299,3 +1299,64 @@ const roboto = localFont({
   ],
 });
 ```
+
+## Route Handlers and Middleware
+
+### Router Handlers
+
+Route Handlers allow you to create custom request handlers for a given route using the Web Request and Response APIs.
+
+```typescript
+export async function GET(request: Request) {}
+```
+
+Route Handlers can be nested anywhere inside the app directory, similar to `page.js` and `layout.js`. But there cannot be a `route.js` file at the same route segment level as `page.js`.
+
+#### Supported HTTP Methods
+
+The following HTTP methods are supported: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`. If an unsupported method is called, Next.js will return a `405` Method Not Allowed response.
+
+#### Extended NextRequest and NextResponse APIs
+
+In addition to supporting the native Request and Response APIs, Next.js extends them with `NextRequest` and `NextResponse` to provide convenient helpers for advanced use cases.
+
+#### Caching
+
+Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. Other supported HTTP methods are not cached. To cache a `GET` method, use a route config option such as `export const dynamic = 'force-static'` in your Route Handler file.
+
+```typescript
+export const dynamic = "force-static";
+
+export async function GET() {
+  const res = await fetch("https://data.mongodb-api.com/...", {
+    headers: {
+      "Content-Type": "application/json",
+      "API-Key": process.env.DATA_API_KEY,
+    },
+  });
+  const data = await res.json();
+
+  return Response.json({ data });
+}
+```
+
+### Middleware
+
+```typescript
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+// This function can be marked `async` if using `await` inside
+export function middleware(request: NextRequest) {
+  return NextResponse.redirect(new URL("/home", request.url));
+}
+
+// See "Matching Paths" below to learn more
+export const config = {
+  matcher: "/about/:path*",
+};
+```
+
+IT IS JUST A START 😉💪 TOUCHED THE SURFACE OF DEEP WATERS
+
+SEE YOU SOON
