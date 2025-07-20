@@ -33,7 +33,7 @@
 
   <body>
     <div class="outro">
-      <p class="heading">Learn Next<span class="dot">.</span>js</p>
+      <p class="heading" style="color: red;">Learn Next<span class="dot">.</span>js</p>
     </div>
   </body>
 </html>
