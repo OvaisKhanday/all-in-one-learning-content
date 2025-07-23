@@ -9,3 +9,9 @@ Topics covered:
 - redux-toolkit
 - react-hook-form
 - react-router
+
+## Nest
+
+## PostgreSQL
+
+## Docker
