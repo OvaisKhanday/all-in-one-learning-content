@@ -1,6 +1,8 @@
-# Volumes and Networks
+# Learn Docker
 
-## Without ENV
+## Volumes and Networks
+
+### Without ENV
 
 The main file in here is `index.js`
 
@@ -43,7 +45,7 @@ docker build -t backend_with_pg .
 docker run -p 3000:3000 --network pg_backend_network backend_with_pg
 ```
 
-## With ENV
+### With ENV
 
 ```javascript
 // index_with_env.js
